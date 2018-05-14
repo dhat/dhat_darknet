@@ -1,4 +1,10 @@
 #include "darknet.h"
+//For reading directories:
+#include <sys/types.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static int coco_ids[] = {1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,27,28,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,67,70,72,73,74,75,76,77,78,79,80,81,82,84,85,86,87,88,89,90};
 
@@ -559,7 +565,7 @@ void validate_detector_recall(char *cfgfile, char *weightfile)
 }
 
 
-void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, char *outfile, int fullscreen)
+void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, char *outfile, int fullscreen, char *indir, char *outdir)
 {
     list *options = read_data_cfg(datacfg);
     char *name_list = option_find_str(options, "names", "data/names.list");
@@ -573,15 +579,65 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     char buff[256];
     char *input = buff;
     float nms=.45;
+    struct dirent *de;
+    DIR *dr;
+    char outdirname[256];
+    char *outdirstr = outdirname;
+    char dirname[256];
+    char *dirstr = dirname;
+    int dirlen = 0;
+    int outdirlen = 0;
+    if(outdir){
+        dr = opendir(outdir);
+        if(dr == NULL) {
+            printf("Could not open output directory %s\n", outdir);
+            return;
+        }
+        closedir(dr);
+        strncpy(outdirname, strcat(outdir,"/"), 256);
+        outdirlen = strlen(outdirname);
+    }
+    //int jpg = 0;
+    //struct stat path_stat;
+    if(indir) {
+        dr = opendir(indir);
+        if(dr == NULL) {
+            printf("Could not open input image directory %s\n", indir);
+            return;
+        }
+        //if(strcmp(dirname[strlen(dirname) - 1],"/") != 1 ) printf("missing trailing slash\n");
+        strncpy(dirname, strcat(indir,"/"), 256);
+        dirlen = strlen(dirname);
+    }
     while(1){
-        if(filename){
-            strncpy(input, filename, 256);
+        if(indir && dr != NULL) {
+          if((de = readdir(dr)) != NULL) {
+//          if (de != NULL) {
+            dirstr[dirlen] = 0;
+            //jpg = strcmp(de->d_name[strlen(de->d_name)-4],".jpg");
+            //jpg = strcmp(de->d_name,".jpg0");
+            //printf("%s has length %d\n", dirstr, dirlen);
+            //printf("%s%s with jpg at %d\n", dirstr, de->d_name, jpg);
+            //lstat(de, &path_stat);
+            //if(S_ISREG(path_stat.st_mode)) 
+            if( strcmp(de->d_name,".jpg0") == 1 ) {
+               //printf("%s%s\n", dirstr, de->d_name);
+               strncpy(input, strcat(dirname,de->d_name), 256);
+            } else {
+               printf("%s%s is not a .jpg file so skipping it\n", dirstr, de->d_name);
+               continue;
+            }
+          } else break;
         } else {
+          if(filename){
+            strncpy(input, filename, 256);
+          } else {
             printf("Enter Image Path: ");
             fflush(stdout);
             input = fgets(input, 256, stdin);
             if(!input) return;
             strtok(input, "\n");
+          }
         }
         image im = load_image_color(input,0,0);
         image sized = letterbox_image(im, net->w, net->h);
@@ -590,7 +646,6 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         //image sized = crop_image(sized2, -((net->w - sized2.w)/2), -((net->h - sized2.h)/2), net->w, net->h);
         //resize_network(net, sized.w, sized.h);
         layer l = net->layers[net->n-1];
-
 
         float *X = sized.data;
         time=what_time_is_it_now();
@@ -607,7 +662,45 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
             save_image(im, outfile);
         }
         else{
-            save_image(im, "predictions");
+            if(indir) {
+               if(outdir) {
+                 outdirstr[outdirlen] = 0;
+                 strcat(outdirstr,de->d_name);
+                 //printf("%s has length %d\n", outdirstr, outdirlen);
+                 save_image(im, strcat(outdirstr,"_predictions"));
+// open txt file for image here
+
+               } else {
+                 save_image(im, strcat(de->d_name,"_predictions"));
+// or open txt file for image here
+              }
+/*
+              int i,j;
+//void draw_detections(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes)
+              for(i = 0; i < nboxes; ++i){
+                char labelstr[4096] = {0};
+                int class = -1;
+                for(j = 0; j < l.classes; ++j){
+//                  if (dets[i].prob[j] > thresh){
+                    printf("For box %d and class %d, probability is %f\n", i, j, dets[i].prob[j]);
+//                    if (class < 0) {
+                      //printf("Name %d is %s\n",j,names[j]);
+                      //strcat(labelstr, names[j]);
+                      //class = j;
+                    //} else {
+                     // strcat(labelstr, ", ");
+                    //  strcat(labelstr, names[j]);
+//                    }
+// save this to txt file
+                  //  printf("My text for %s: %.0f%%\n", names[j], dets[i].prob[j]*100);
+//                  }
+                }
+              }
+*/
+//close txt file here
+            } else {
+              save_image(im, "predictions");
+            }
 #ifdef OPENCV
             cvNamedWindow("predictions", CV_WINDOW_NORMAL); 
             if(fullscreen){
@@ -623,6 +716,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         free_image(sized);
         if (filename) break;
     }
+
+    if(indir) closedir(dr);
 }
 
 /*
@@ -805,6 +900,8 @@ void run_detector(int argc, char **argv)
     }
     char *gpu_list = find_char_arg(argc, argv, "-gpus", 0);
     char *outfile = find_char_arg(argc, argv, "-out", 0);
+    char *indir = find_char_arg(argc, argv, "-indir", 0);
+    char *outdir = find_char_arg(argc, argv, "-outdir", 0);
     int *gpus = 0;
     int gpu = 0;
     int ngpus = 0;
@@ -838,7 +935,7 @@ void run_detector(int argc, char **argv)
     char *cfg = argv[4];
     char *weights = (argc > 5) ? argv[5] : 0;
     char *filename = (argc > 6) ? argv[6]: 0;
-    if(0==strcmp(argv[2], "test")) test_detector(datacfg, cfg, weights, filename, thresh, hier_thresh, outfile, fullscreen);
+    if(0==strcmp(argv[2], "test")) test_detector(datacfg, cfg, weights, filename, thresh, hier_thresh, outfile, fullscreen, indir, outdir);
     else if(0==strcmp(argv[2], "train")) train_detector(datacfg, cfg, weights, gpus, ngpus, clear);
     else if(0==strcmp(argv[2], "valid")) validate_detector(datacfg, cfg, weights, outfile);
     else if(0==strcmp(argv[2], "valid2")) validate_detector_flip(datacfg, cfg, weights, outfile);
