@@ -1,3 +1,5 @@
+This repository is for mods made by dhat.  Original excellent source code is from:
+
 ![Darknet Logo](http://pjreddie.com/media/files/darknet-black-small.png)
 
 # Darknet #
