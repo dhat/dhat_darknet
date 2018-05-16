@@ -26,5 +26,4 @@ Icon?
 Thumbs.db
 *.swp
 
-Makefile
-.gitignore
+*.weights
