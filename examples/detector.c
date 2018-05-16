@@ -587,6 +587,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     char *dirstr = dirname;
     int dirlen = 0;
     int outdirlen = 0;
+    char *suffix;
     if(outdir){
         dr = opendir(outdir);
         if(dr == NULL) {
@@ -612,21 +613,16 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     while(1){
         if(indir && dr != NULL) {
           if((de = readdir(dr)) != NULL) {
-//          if (de != NULL) {
             dirstr[dirlen] = 0;
-            //jpg = strcmp(de->d_name[strlen(de->d_name)-4],".jpg");
-            //jpg = strcmp(de->d_name,".jpg0");
-            //printf("%s has length %d\n", dirstr, dirlen);
-            //printf("%s%s with jpg at %d\n", dirstr, de->d_name, jpg);
-            //lstat(de, &path_stat);
-            //if(S_ISREG(path_stat.st_mode)) 
-            if( strcmp(de->d_name,".jpg0") == 1 ) {
-               //printf("%s%s\n", dirstr, de->d_name);
-               strncpy(input, strcat(dirname,de->d_name), 256);
-            } else {
-               printf("%s%s is not a .jpg file so skipping it\n", dirstr, de->d_name);
-               continue;
-            }
+            if((suffix = strrchr(de->d_name,'.')) != NULL ) {
+              if(strcmp(suffix,".jpg") == 0) {
+                printf("Running detection on .jpg file %s%s\n", dirstr, de->d_name);
+                strncpy(input, strcat(dirname,de->d_name), 256);
+              } else {
+                printf("File %s%s is not a .jpg file so skipping it\n", dirstr, de->d_name);
+                continue;
+              }
+            } else continue;
           } else break;
         } else {
           if(filename){
@@ -657,11 +653,9 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         //if (nms) do_nms_obj(boxes, probs, l.w*l.h*l.n, l.classes, nms);
         if (nms) do_nms_sort(dets, nboxes, l.classes, nms);
         draw_detections(im, dets, nboxes, thresh, names, alphabet, l.classes);
-        free_detections(dets, nboxes);
         if(outfile){
             save_image(im, outfile);
-        }
-        else{
+        } else {
             if(indir) {
                if(outdir) {
                  outdirstr[outdirlen] = 0;
@@ -674,29 +668,28 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
                  save_image(im, strcat(de->d_name,"_predictions"));
 // or open txt file for image here
               }
-/*
               int i,j;
 //void draw_detections(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes)
               for(i = 0; i < nboxes; ++i){
-                char labelstr[4096] = {0};
-                int class = -1;
-                for(j = 0; j < l.classes; ++j){
-//                  if (dets[i].prob[j] > thresh){
-                    printf("For box %d and class %d, probability is %f\n", i, j, dets[i].prob[j]);
-//                    if (class < 0) {
-                      //printf("Name %d is %s\n",j,names[j]);
-                      //strcat(labelstr, names[j]);
-                      //class = j;
-                    //} else {
-                     // strcat(labelstr, ", ");
-                    //  strcat(labelstr, names[j]);
-//                    }
+                if( dets[i].objectness != 0 ){
+                  char labelstr[4096] = {0};
+                  int class = -1;
+                  for(j = 0; j < l.classes; ++j){
+                    if (dets[i].prob[j] > thresh){
+                      if (class < 0) {
+                        strcat(labelstr, names[j]);
+                        class = j;
+                      } else {
+                        strcat(labelstr, ", ");
+                        strcat(labelstr, names[j]);
+                      }
 // save this to txt file
-                  //  printf("My text for %s: %.0f%%\n", names[j], dets[i].prob[j]*100);
-//                  }
+                      printf("My text for %s: %.0f%%\n", names[j], dets[i].prob[j]*100);
+                    }
+                  }
                 }
               }
-*/
+
 //close txt file here
             } else {
               save_image(im, "predictions");
@@ -711,7 +704,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
             cvDestroyAllWindows();
 #endif
         }
-
+        free_detections(dets, nboxes);
         free_image(im);
         free_image(sized);
         if (filename) break;

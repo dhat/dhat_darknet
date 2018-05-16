@@ -1,0 +1,32 @@
+https://pjreddie.com/darknet/yolo/
+
+get it:
+git clone https://github.com/pjreddie/darknet.git
+
+regular compile just cd into darknet and run make
+
+To compile for cuda:
+ensure cuda dev is installed
+ensure path includes /usr/local/cuda/bin for nvcc
+edit make file and change first line to set gpu to 1
+run make
+
+get weights:
+wget https://pjreddie.com/media/files/yolov3.weights
+
+put weights into cfg directory
+
+run:
+./darknet detect cfg/yolov3.cfg yolov3.weights data/dog.jpg
+
+or train a classifier
+./darknet classifier train cfg/cifar.data cfg/cifar_small.cfg
+see example files in root
+
+#to use yolo 9000, get weights:
+wget http://pjreddie.com/media/files/yolo9000.weights
+#then, must use detector with test data file
+./darknet detector test cfg/combine9k.data cfg/yolo9000.cfg yolo9000.weights data/person.jpg
+or
+./darknet detector test cfg/combine9k.data cfg/yolo9000.cfg yolo9000.weights data/person.jpg -thresh .12 -hier .6
+
